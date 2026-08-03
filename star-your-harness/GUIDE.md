@@ -14,7 +14,7 @@
 
 不是笔记软件，不是知识库，是**你和 AI 之间的那层结构**。
 
-你给 Claude Code 写过 CLAUDE.md、装过 Skill、建过记忆目录，那些零件加起来就是 harness。问题是大多数人是攒出来的，不是搭出来的：目录随手建，规则想起来才写，资料散在三个地方，每次让 AI 干活都要重新解释一遍背景。
+你写过 CLAUDE.md 或 AGENTS.md、装过 Skill、建过记忆目录，那些零件加起来就是 harness。问题是大多数人是攒出来的，不是搭出来的：目录随手建，规则想起来才写，资料散在三个地方，每次让 Agent 干活都要重新解释一遍背景。
 
 这个工具给你一个**立得住的骨架**，剩下的你往里填。
 
@@ -52,13 +52,16 @@ python3 scripts/apply.py plan.json -d decisions.json
 python3 scripts/apply.py plan.json -d decisions.json --apply
 ```
 
-装成 Claude Code 的 Skill，让它替你跑完整流程（含访谈）：
+装成 Skill，让 Agent 替你跑完整流程（含访谈）。软链到你用的那个 runtime 的 Skill 目录：
 
 ```bash
-ln -s "$(pwd)" ~/.claude/skills/star-your-harness
+ln -s "$(pwd)" ~/.claude/skills/star-your-harness   # Claude Code
+ln -s "$(pwd)" ~/.codex/skills/star-your-harness    # Codex
 ```
 
-然后说一句「帮我搭一个 harness」。
+然后跟你的 Agent 说一句「帮我搭一个 harness」。
+
+不装也行，脚本是纯 Python CLI，不依赖任何 runtime。
 
 ## 方案报告长什么样
 
@@ -203,7 +206,7 @@ hunyuan-console-prototype — 建议不搬
 
 ```
 star-your-harness/
-├── SKILL.md          作为 Claude Code Skill 的说明书（含访谈流程）
+├── SKILL.md          Skill 说明书（含访谈流程），标准 SKILL.md 格式
 └── scripts/
     ├── plan.py       profile.json → plan.json + plan.html（方案报告，不写盘）
     ├── apply.py      plan.json + decisions.json → 真正落盘（预演 / --apply）

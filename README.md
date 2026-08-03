@@ -1,21 +1,47 @@
+<div align="center">
+
 # build-your-harness
 
-两个配套的 Claude Code Skill：**一个负责搭 harness，一个负责给 harness 体检。**
+---
 
-零依赖，只需要 Python 3.8+。不联网，不上传任何东西。
+`star-your-harness.skill` &nbsp;·&nbsp; `better-your-harness.skill`
+
+<br>
+
+![LICENSE](https://img.shields.io/badge/LICENSE-MIT-DFB317?style=for-the-badge&labelColor=555555)
+![AGENT SKILLS](https://img.shields.io/badge/AGENT_SKILLS-STANDARD-4CAF50?style=for-the-badge&labelColor=555555)
+![DEPENDENCIES](https://img.shields.io/badge/DEPENDENCIES-ZERO-2196F3?style=for-the-badge&labelColor=555555)
+
+![RUNTIME](https://img.shields.io/badge/RUNTIME-CLAUDE_CODE_%C2%B7_CODEX_%C2%B7_CURSOR_%C2%B7_OPENCLAW-7C3AED?style=for-the-badge&labelColor=555555)
+
+公众号 / 小红书 / B站 / 知乎：空格的键盘 &nbsp;|&nbsp; [wzfh520@gmail.com](mailto:wzfh520@gmail.com)
+
+</div>
+
+---
+
+两个配套的 Agent Skill：**一个负责搭 harness，一个负责给 harness 体检。**
 
 | Skill | 干什么 | 产出 |
 |-------|--------|------|
 | [**star-your-harness**](star-your-harness/) | 从零搭一个 harness | 可视化方案报告 → 你确认 → 目录骨架落盘 |
 | [**better-your-harness**](better-your-harness/) | 给现有 harness 体检 | 可视化体检报告 + 可一键复制的修复口令 |
 
----
+零依赖，只需要 Python 3.8+。不联网，不上传任何东西。
+
+## 不绑定任何一个 Agent
+
+两个 Skill 用的是标准 `SKILL.md` 格式（YAML frontmatter + 正文），**任何能读它的 Agent 都能用**：Claude Code、Codex、Cursor、OpenClaw、以及各种 buddy 系工具。
+
+更彻底一点：**底层是四个纯 Python 命令行脚本，不 import 任何 Agent 相关的东西。** 你完全不用 Skill 机制，直接当 CLI 跑也行，产出的 HTML 报告是一样的。Skill 那层只是替你把访谈、判断、串流程这些事包起来。
+
+体检工具还会**同时扫描多个 runtime 的 Skill 目录**（`~/.claude/skills`、`~/.codex/skills`、项目级 `.claude/skills` 和 `.agents/skills`），按唯一名字去重，所以你混着用几个 Agent 也能得到一个统一的清单。
 
 ## 什么是 harness
 
-不是笔记软件，不是知识库，是**你和 AI 之间的那层结构**。
+不是笔记软件，不是知识库，是**你和 Agent 之间的那层结构**。
 
-你给 Claude Code 写过 CLAUDE.md、装过 Skill、接过 MCP、建过记忆目录，那些零件加起来就是 harness。问题是大多数人的 harness 是**攒**出来的不是**搭**出来的：目录随手建，规则想起来才写，资料散在三个地方，每次让 AI 干活都要重新解释一遍背景。
+你写过 CLAUDE.md 或 AGENTS.md、装过 Skill、接过 MCP、建过记忆目录，那些零件加起来就是 harness。问题是大多数人的 harness 是**攒**出来的不是**搭**出来的：目录随手建，规则想起来才写，资料散在三个地方，每次让 Agent 干活都要重新解释一遍背景。
 
 更麻烦的是你不知道它现在什么状况。装了多少 Skill 真正被调用过？Agent 读你这个仓库要先吃掉多少 token？有没有明文密钥躺在一个没被 `.gitignore` 覆盖的地方？
 
@@ -38,14 +64,39 @@
 ```bash
 git clone https://github.com/SpaceZephyr/build-your-harness.git
 cd build-your-harness
+```
 
+**Claude Code**
+
+```bash
 ln -s "$(pwd)/star-your-harness"   ~/.claude/skills/star-your-harness
 ln -s "$(pwd)/better-your-harness" ~/.claude/skills/better-your-harness
 ```
 
-然后在 Claude Code 里说「帮我搭一个 harness」或者「给这个项目做个体检」。
+**Codex**
 
-不想装 Skill 也能直接当命令行用，见各自的 GUIDE。
+```bash
+ln -s "$(pwd)/star-your-harness"   ~/.codex/skills/star-your-harness
+ln -s "$(pwd)/better-your-harness" ~/.codex/skills/better-your-harness
+```
+
+**其他 Agent** — 软链到它的 Skill 目录就行，两个 Skill 除了 `SKILL.md` 和 `scripts/` 没有别的依赖。项目级也可以：`<项目>/.claude/skills/` 或 `<项目>/.agents/skills/`。
+
+装完说一句「帮我搭一个 harness」或者「给这个项目做个体检」。
+
+**不装也能用**
+
+```bash
+# 体检
+python3 better-your-harness/scripts/scan.py <项目目录> -o findings.json
+python3 better-your-harness/scripts/render.py findings.json -o report.html
+
+# 搭建
+python3 star-your-harness/scripts/plan.py profile.json -o plan.html
+python3 star-your-harness/scripts/apply.py plan.json -d decisions.json --apply
+```
+
+> 实测跑过 Claude Code 和 Codex。其他 runtime 因为格式是标准的、脚本是纯 Python，理论上都行，但我没逐个验证过 —— 遇到问题开个 issue。
 
 ## 两个工具怎么配合
 
@@ -93,6 +144,8 @@ ln -s "$(pwd)/better-your-harness" ~/.claude/skills/better-your-harness
 
 体检报告不直接改你的仓库，它给你一段修复口令，你自己决定粘不粘给 Agent。
 
+凭证扫描只输出「文件路径 + 变量名 + 命中的模式名」，**任何密钥的值都不会出现在报告、对话或修复口令里**。
+
 ### 不打分，打覆盖度
 
 `28/34` 是「已具备项 / 应有项」，可数、可解释、修一项变一项。
@@ -124,7 +177,7 @@ build-your-harness/
 ## 局限
 
 - 只在 macOS / Linux 上测过
-- 会话统计依赖本地日志，换客户端或清过日志就统计不到
+- 会话统计依赖本地日志，换 Agent 或清过日志就统计不到
 - 凭证扫描是启发式的，可能漏（自定义格式）也可能误报（占位符已尽量排除）
 - 归类规则是中英混合关键词匹配，小众命名习惯会认不准
 - 覆盖度里的「应有项」是这套工具定的，不是行业标准

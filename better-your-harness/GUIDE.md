@@ -1,6 +1,6 @@
 # better-your-harness
 
-给本地项目做一次 AI Harness 体检，产出一份自包含的可视化 HTML 报告，最后给你一串**可以直接粘给 Claude Code / Codex 去修**的口令。
+给本地项目做一次 AI Harness 体检，产出一份自包含的可视化 HTML 报告，最后给你一串**可以直接粘给 Claude Code / Codex / 任何 Agent 去修**的口令。
 
 零依赖，只需要 Python 3.8+。不联网，不上传任何东西。
 
@@ -30,13 +30,16 @@ python3 scripts/scan.py /path/to/your/project -o findings.json
 python3 scripts/render.py findings.json -o report.html
 ```
 
-当作 Skill 装进 Claude Code，让它帮你写判断和修复口令：
+装成 Skill，让 Agent 帮你写判断和修复口令。软链到你用的那个 runtime 的 Skill 目录：
 
 ```bash
-ln -s "$(pwd)" ~/.claude/skills/better-your-harness
+ln -s "$(pwd)" ~/.claude/skills/better-your-harness   # Claude Code
+ln -s "$(pwd)" ~/.codex/skills/better-your-harness    # Codex
 ```
 
-然后在 Claude Code 里说「帮我给这个项目做个 harness 体检」。
+然后跟你的 Agent 说「帮我给这个项目做个 harness 体检」。
+
+不装也行，脚本是纯 Python CLI，不依赖任何 runtime。
 
 ## 报告里有什么
 
@@ -132,7 +135,7 @@ AI 拿不到发明新发现的权限。看到脚本没扫到的问题，只能�
 
 ```
 better-your-harness/
-├── SKILL.md              作为 Claude Code Skill 的说明书
+├── SKILL.md              Skill 说明书，标准 SKILL.md 格式
 └── scripts/
     ├── scan.py           确定性扫描 → findings.json，不做任何判断
     └── render.py         findings.json + analysis.json → 单页 HTML
