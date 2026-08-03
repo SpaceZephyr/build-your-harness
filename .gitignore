@@ -1,0 +1,28 @@
+# 体检与方案产物：含被扫/被搭项目的真实路径和结构，不进仓库
+*.html
+findings.json
+analysis.json
+plan.json
+profile.json
+decisions.json
+migrate.sh
+搭建方案.*
+harness-report.*
+/out/
+/tmp/
+
+# 系统与依赖
+.DS_Store
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 凭证
+.env
+.env.*
+*.env
+*.key
+*.pem
+credentials*.json
