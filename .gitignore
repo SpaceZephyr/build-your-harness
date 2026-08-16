@@ -8,8 +8,13 @@ decisions.json
 migrate.sh
 搭建方案.*
 harness-report.*
+harness-index.json
+*-index.json
 /out/
 /tmp/
+
+# 例外：工作台的前端本体是源码，不是产物
+!view-your-harness/scripts/ui.html
 
 # 系统与依赖
 .DS_Store
