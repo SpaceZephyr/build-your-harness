@@ -77,7 +77,10 @@ def scan_security(root):
     out['gitignore'] = {
         'exists': gi.exists(),
         'lines': len([l for l in gi_text.splitlines() if l.strip() and not l.startswith('#')]),
-        'missing_patterns': [p for p in GITIGNORE_WANT if p not in gi_text],
+        # 白名单写法（第一条规则是 *，再用 ! 放行）默认就挡住了一切，不用逐条列噪音
+        'whitelist': bool(re.search(r'^\*\s*$', gi_text, re.M)) and '!' in gi_text,
+        'missing_patterns': [] if (re.search(r'^\*\s*$', gi_text, re.M) and '!' in gi_text)
+                            else [p for p in GITIGNORE_WANT if p not in gi_text],
         'sub_gitignores': len(list(root.glob('*/.gitignore'))) + len(list(root.glob('*/*/.gitignore'))),
     }
 
@@ -213,16 +216,43 @@ def scan_context(root):
         if not p.exists():
             continue
         txt = read(p)
+        # 只有一两行、用 @AGENTS.md 之类把内容引到别处的，是指针文件，不是入口正本
+        pointer = bool(re.search(r'^@\S+\.md\s*$', txt, re.M)) and len(txt) < 600
         entries.append({
             'name': name,
+            'pointer': pointer,
             'chars': len(txt),
             'tokens': approx_tokens(len(txt)),
-            'has_dir_map': bool(re.search(r'```[\s\S]{80,}?```', txt)) or txt.count('├──') > 2,
+            # 目录地图三种写法都认：代码块、树形符号、表格里一行一个带反引号的目录
+            'has_dir_map': bool(re.search(r'```[\s\S]{80,}?```', txt)) or txt.count('├──') > 2
+                           or len(re.findall(r'^\|\s*`[^`|]+`\s*\|', txt, re.M)) >= 4,
             'has_table': txt.count('|---') > 0 or txt.count('| ---') > 0,
             'has_rules': bool(re.search(r'(规则|rules?|必须|禁止|must|never|always)', txt, re.I)),
             'headings': len(re.findall(r'^#{1,3} ', txt, re.M)),
         })
     out['entries'] = entries
+
+    # 2.0：状态页、工具清单、上手自测。入口只放指针，这三样各管一件事
+    def _find(names):
+        for n in names:
+            if (root / n).exists():
+                return n
+        return ''
+    now_f, tools_f = _find(['NOW.md', 'now.md']), _find(['TOOLS.md', 'tools.md'])
+    now_age = -1
+    if now_f:
+        now_age = round((time.time() - (root / now_f).stat().st_mtime) / 86400)
+    all_entry = '\n'.join(read(root / e['name']) for e in entries if e['name'] in ('CLAUDE.md', 'AGENTS.md'))
+    quiz = re.search(r'^#{1,3} .*(自测|self[- ]?test|quiz|验收)', all_entry, re.I | re.M)
+    quiz_n = len(re.findall(r'^\s*\d+[.、]\s*.+[?？]\s*$', all_entry[quiz.start():], re.M)) if quiz else 0
+    out['harness2'] = {
+        'now_file': now_f, 'now_days_since_update': now_age,
+        'tools_file': tools_f,
+        'has_quiz': bool(quiz), 'quiz_questions': quiz_n,
+        'agents_md_is_source': any(e['name'] == 'AGENTS.md' and not e['pointer'] for e in entries),
+        'entry_sources': [e['name'] for e in entries
+                          if e['name'] in ('CLAUDE.md', 'AGENTS.md', 'GEMINI.md') and not e['pointer']],
+    }
 
     # 顶层目录 + README 覆盖率
     top = [d for d in sorted(root.iterdir())
@@ -462,7 +492,9 @@ def scan_memory(root):
         linked = set(re.findall(r'\(([^)]+\.md)\)', idx_txt)) | set(re.findall(r'\[\[([^\]]+)\]\]', idx_txt))
         names = {p.name for p in files} | {p.stem for p in files}
         dangling = [l for l in linked if l not in names and Path(l).name not in names]
-        unindexed = [p.name for p in files if p.name not in linked and p.stem not in linked]
+        # 索引里常写相对路径（shared/xxx.md），按文件名比对，否则子目录里的全被误判成未入索引
+        linked_names = linked | {Path(x).name for x in linked}
+        unindexed = [p.name for p in files if p.name not in linked_names and p.stem not in linked_names]
         out['stores'].append({
             'path': str(c),
             'files': len(files),
@@ -640,10 +672,28 @@ def build_findings(d):
         if big:
             f.append(dict(id='entry_too_big', layer='context',
                           fact="入口文件偏大：" + '、'.join(f"{e['name']} 约 {e['tokens']} token" for e in big)))
-        nomap = [e['name'] for e in c['entries'] if e['name'] in ('CLAUDE.md', 'AGENTS.md') and not e['has_dir_map']]
+        nomap = [e['name'] for e in c['entries'] if e['name'] in ('CLAUDE.md', 'AGENTS.md')
+                 and not e['has_dir_map'] and not e.get('pointer')]
         if nomap:
             f.append(dict(id='entry_no_map', layer='context',
                           fact=f"{'、'.join(nomap)} 里没有目录地图，Agent 得靠试探找路"))
+
+    h2 = c.get('harness2', {})
+    if len(h2.get('entry_sources', [])) > 1:
+        f.append(dict(id='entry_split', layer='context',
+                      fact=f"{'、'.join(h2['entry_sources'])} 各写了一份完整入口，不同 Agent 读到的规则可能不一样"))
+    if c['entries'] and not h2.get('now_file'):
+        f.append(dict(id='no_now', layer='context',
+                      fact="没有 NOW.md 这类当前状态页，Agent 不知道你现在的主线和明确不做的事"))
+    elif h2.get('now_days_since_update', 0) > 30:
+        f.append(dict(id='now_stale', layer='context',
+                      fact=f"{h2['now_file']} 已经 {h2['now_days_since_update']} 天没更新，Agent 拿到的是过期的主线"))
+    if c['entries'] and not h2.get('tools_file'):
+        f.append(dict(id='no_tools_doc', layer='context',
+                      fact="没有 TOOLS.md 这类工具清单，Agent 不知道能调哪些工具、怎么调、花多少钱"))
+    if c['entries'] and not h2.get('has_quiz'):
+        f.append(dict(id='no_quiz', layer='context',
+                      fact="入口文件里没有上手自测题，没法验证换一个 Agent 读完之后是否真的了解你"))
 
     td = c['top_dirs']
     if td['total'] and td['coverage'] < 0.6:
@@ -737,6 +787,10 @@ def score(d):
             ('没有过度扁平的目录', not c['structure']['wide_dirs']),
             ('冷启动成本低于 2 万 token', c['cold_start']['tokens'] < 20000),
             ('索引没有悬空条目', not any(i['dangling'] for i in c['indexes'])),
+            ('入口只有一份正本', len(c.get('harness2', {}).get('entry_sources', [])) == 1),
+            ('有当前状态页 NOW.md', bool(c.get('harness2', {}).get('now_file'))),
+            ('有工具清单 TOOLS.md', bool(c.get('harness2', {}).get('tools_file'))),
+            ('入口带上手自测题', c.get('harness2', {}).get('has_quiz', False)),
         ],
         'tools': [
             ('装了 Skill', sk['total'] > 0),

@@ -79,7 +79,10 @@ ln -s "$(pwd)" ~/.codex/skills/star-your-harness    # Codex
 ## 生成出来是什么
 
 ```
-CLAUDE.md              入口：目录地图 + 6 条行为规则 + 任务路由表
+AGENTS.md              唯一入口：必读清单 + 目录地图 + 行为规则 + 任务路由 + 边界 + 上手自测
+CLAUDE.md              只有一行 @AGENTS.md，让 Claude Code 读到同一份
+NOW.md                 当前状态：主线、做与不做、本周
+TOOLS.md               工具清单：能调什么、怎么调、花多少钱
 README.md
 .gitignore             含凭证兜底那几行
 .claude/settings.json  一个 hook：拦截 git add -A
@@ -94,6 +97,10 @@ README.md
 ```
 
 每个目录一份 README，写清楚放什么、不放什么、怎么命名。
+
+## 改造模式
+
+2.0 新增。已经有一个乱目录时，不建新的，原地重组：`restructure.py scan` 出方案报告，你在页面上逐项决定保留、并入哪一层还是归档，确认后 `restructure.py apply --apply` 执行。只移动不删除，每一步记进 `MANIFEST.md`，附 `undo.sh` 可原路退回。完整流程见 [SKILL.md](SKILL.md) 的「改造模式」一节。
 
 ## 职业模板
 
@@ -136,7 +143,7 @@ README.md
   工具装备     2/7
 ```
 
-前三层满分是设计出来的：`.gitignore`、CLAUDE.md 的目录地图和行为规则、每层 README、记忆索引加种子记忆、结构化日志、git 初始化，这些不是可选项，是默认动作。
+前三层满分是设计出来的：`.gitignore`、AGENTS.md 的目录地图和行为规则、每层 README、记忆索引加种子记忆、结构化日志、git 初始化，这些不是可选项，是默认动作。
 
 后两层扣的分是时间问题：新 harness 还没装 Skill 和 MCP，git 也只有一天的提交历史。**这个如实说，不粉饰。**
 
@@ -191,7 +198,7 @@ hunyuan-console-prototype — 建议不搬
 
 - 归类规则是中英混合的关键词匹配，小众命名习惯会认不准
 - 只在 macOS / Linux 上测过
-- 生成的 CLAUDE.md 是骨架，**约 2800 token**，够 Agent 理解结构，但你的个人偏好得自己填
+- 生成的 AGENTS.md 是骨架，**约 3500 token**，够 Agent 理解结构，但你的个人偏好得自己填
 - 不做发布、排期、数据回收，harness 只管到产出成品
 
 ## 建完之后最要紧的一件事

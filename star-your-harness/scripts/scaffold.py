@@ -4,7 +4,7 @@
 star-your-harness 脚手架：按用户画像生成一个 harness 目录。
 
 设计目标：生成出来的东西要能直接通过 better-your-harness 的体检。
-所以 .gitignore、CLAUDE.md 的目录地图与行为规则、每层 README、
+所以 .gitignore、AGENTS.md 的目录地图与行为规则、每层 README、
 记忆索引、复盘目录、git 初始化，这些不是可选项，是默认动作。
 
 铁律：绝不覆盖已存在的文件。同名一律跳过并报告。
@@ -12,8 +12,10 @@ star-your-harness 脚手架：按用户画像生成一个 harness 目录。
 用法：
   python3 scaffold.py profile.json            # 预演，只打印会做什么
   python3 scaffold.py profile.json --apply    # 真的写盘
+  python3 scaffold.py profile.json --entry-only --apply
+      # 目录已经有了，只按实际目录补 AGENTS.md / CLAUDE.md / NOW.md / TOOLS.md 等入口文件
 """
-import json, os, sys, subprocess, datetime
+import json, os, re, sys, subprocess, datetime
 from pathlib import Path
 
 # ---------- 职业模板：只有产出层因职业而异，骨架是通用的 ----------
@@ -108,14 +110,37 @@ def build_plan(p):
     dirs.sort(key=lambda x: x[0])
 
     files = {}
+    am = dirname('10', 'about-me', '关于我', 'about-me', naming)
+    mem = dirname('40', 'memory', '记忆', 'memory', naming)
+    pro = dirname('50', 'protocols', '协议', 'protocols', naming)
+    # --entry-only：目录已经存在（比如刚用 restructure.py 改造完），按实际目录写入口，不套模板名
+    if p.get('_actual_dirs'):
+        dirs = p['_actual_dirs']
+        def _pick(pat, default):
+            return next((d for d, *_ in dirs if re.search(pat, d, re.I)), default)
+        am = _pick(r'about|关于我|profile|(^|\d\s*)me$', am)
+        mem = _pick(r'memory|记忆', mem)
+        pro = _pick(r'protocol|协议|review|复盘', pro)
+    today = datetime.date.today().isoformat()
 
-    # ---- CLAUDE.md：目录地图 + 行为规则 + 任务路由，三样都要有 ----
+    # ---- AGENTS.md：唯一入口。目录地图 + 行为规则 + 任务路由 + 边界 + 自测 ----
+    # 2.0 起入口从 CLAUDE.md 换成 AGENTS.md：Codex、Cursor 等都认它，
+    # CLAUDE.md 只留一行引用，避免两份入口各写各的。
     tree = '\n'.join(f'{d}/{" " * max(1, 22 - len(d))}{desc}' for d, _, desc, _ in dirs)
     routes = '\n'.join(
         f'| {zh} | `{d}/` | {layer} |' for d, zh, _, layer in dirs)
-    files['CLAUDE.md'] = f'''# {name}
+    files['AGENTS.md'] = f'''# {name}
 
-这是我的 harness：给 AI 协作用的工作目录。你（Agent）每次进来先读这份文件。
+这是我的 harness：给 AI 协作用的工作目录。本文件是唯一入口，任何 Agent（Claude Code、Codex、Cursor 等）进来都先读它。`CLAUDE.md` 只是指向这里。
+
+## 接任务前先读
+
+| 顺序 | 文件 | 回答什么 |
+|------|------|---------|
+| 1 | `NOW.md` | 我现在的主线、本周在做什么、哪些事不做 |
+| 2 | `{am}/` | 我是谁、工作偏好、质量标准 |
+| 3 | `{mem}/MEMORY.md` | 我纠正过什么、有哪些固定偏好 |
+| 4 | `TOOLS.md` | 能用哪些工具，怎么调用，花多少钱 |
 
 ## 目录地图
 
@@ -139,6 +164,14 @@ def build_plan(p):
 4. **新建文件前先确认该放哪个目录**，不确定就放 `{dirname('00','inbox','收件箱','inbox',naming)}/` 并告诉我。
 5. **不要覆盖已有文件**。要改就先展示 diff，我确认再动。
 6. **涉及 `git push`、批量删除、改配置这类不可逆操作，先问我。**
+7. **任务偏离 `NOW.md` 的主线，或撞上它「不做」那一列时，先说一句再执行。**
+
+## 边界
+
+- 不 commit、不 push，除非我明确要求
+- 不永久删除文件。要清理就移到归档目录并记入 `MANIFEST.md`
+- 不把密钥写进任何文件或回复，只写环境变量名
+- 发帖、发消息、评论等对外写操作，必须我明确要求
 
 ## 任务路由
 
@@ -160,6 +193,24 @@ def build_plan(p):
 2. 对比这段时间实际做了什么
 3. 新的一份写进 `{dirname('50','protocols','协议','protocols',naming)}/iterations/`
 
+## 做完任务后
+
+1. 往 `{pro}/daily-log.jsonl` 追加一行：日期、哪个 Agent、做了什么、改了哪些文件
+2. 我纠正了你的做法，或确认了一个以后都适用的偏好，在 `{mem}/` 新增一条记忆并更新索引
+3. 改了目录结构、工具连接或工作流，同步更新本文件或 `TOOLS.md`
+
+## 上手自测
+
+读完上面四处之后，你应该能回答这 5 个问题。答不出就回去重读，还答不出就告诉我哪份文件缺了什么。
+
+1. 这个 harness 当初想解决什么问题？
+2. 一份新产出该放进哪个目录？拿不准时放哪？
+3. 操作 `.jsonl` 文件有什么限制？
+4. 我现在的主线是什么？哪些事明确不做？
+5. 要记住一件事，需要同时改哪两个地方？
+
+> 这 5 题是骨架自带的。用一阵之后换成只有读过你的资料才答得出的题，验收才有意义。
+
 ## 这个 harness 的健康度
 
 用 [better-your-harness](https://github.com/SpaceZephyr/build-your-harness) 定期体检：
@@ -167,6 +218,82 @@ def build_plan(p):
 ```bash
 python3 scripts/scan.py {p['dir']} -o findings.json
 ```
+'''
+
+    # ---- CLAUDE.md：只引用，不写内容。Claude Code 会把 @AGENTS.md 展开 ----
+    files['CLAUDE.md'] = '''# CLAUDE.md
+
+本仓库的全部说明在 `AGENTS.md`，所有 Agent 共用同一份。请按它执行。
+
+@AGENTS.md
+'''
+
+    # ---- NOW.md：当前状态页。目标不进入口，入口只指过来 ----
+    files['NOW.md'] = f'''# NOW：当前状态
+
+> 更新日期：{today}。建议每周更新一次。任何 Agent 接任务前先读这一页，判断任务和当前主线的关系。
+
+## 主线
+
+（一句话：我现在最重要的一件事是什么）
+
+## 当前在想的问题
+
+| 问题 | 周期 |
+|------|------|
+| （例：什么内容会被转发？） | （例：本月） |
+
+## 取舍
+
+| 做 | 不做 |
+|----|------|
+| | |
+
+> Agent 遇到落在「不做」那一列的请求时，先提醒我再执行。
+
+## 本周
+
+-
+
+## 只盯这几个数
+
+（最多 3 个。数太多等于没有）
+
+## Agent 可以主动做的
+
+- 本页超过 10 天没更新时提醒我
+- 发现任务偏离主线时先说一句
+'''
+
+    # ---- TOOLS.md：工具清单。Agent 需要外部数据前先读 ----
+    files['TOOLS.md'] = f'''# TOOLS：可用工具清单
+
+> 更新日期：{today}。任何 Agent 需要拿外部数据或操作外部服务前先读这一页。
+> 密钥只写环境变量名，值放在本机的 shell 配置里，不进仓库，不出现在回复里。
+
+## 连接状态
+
+| 工具 | 用途 | 命令 | 自检 | 状态 |
+|------|------|------|------|------|
+| （例：GitHub） | 仓库、Issue、PR | `gh` | `gh auth status` | 待确认 |
+
+> 用 know-your-harness 的 `probe.py` 可以自动探测本机装了哪些，再把结果填进来。
+
+## 我的账号
+
+| 平台 | 标识 |
+|------|------|
+| | |
+
+## 成本
+
+- 按量计费的接口写在这：每次大约多少钱
+- 批量调用前先说明预计次数和费用
+
+## 使用边界
+
+- 只读自己的账号数据和公开数据
+- 发帖、发消息、评论等写操作，必须我明确要求才做
 '''
 
     # ---- .gitignore ----
@@ -225,7 +352,6 @@ harness-report.html
 '''
 
     # ---- about-me 的种子文件 ----
-    am = dirname('10', 'about-me', '关于我', 'about-me', naming)
     files[f'{am}/我是谁.md'] = f'''# 我是谁
 
 > 这份文件是 Agent 理解你的起点。写得越具体，它的产出越像你。
@@ -283,7 +409,6 @@ harness-report.html
 '''
 
     # ---- 记忆层：索引 + 一条种子记忆（必须在索引里，否则体检会判未入索引）----
-    mem = dirname('40', 'memory', '记忆', 'memory', naming)
     files[f'{mem}/MEMORY.md'] = f'''# 记忆索引
 
 > 每条记忆一个文件，这里一行一条指针。
@@ -309,7 +434,6 @@ type: project
 '''
 
     # ---- 协议层：工作流 + 迭代记录目录 ----
-    pro = dirname('50', 'protocols', '协议', 'protocols', naming)
     files[f'{pro}/workflows.jsonl'] = json.dumps({
         'id': 'new-work', 'name': '开始一件新工作',
         'steps': [f'读 {am}/', f'查 {pro}/workflows.jsonl',
@@ -342,7 +466,7 @@ type: project
 
 ## 做了什么
 
-用 star-your-harness 生成了基础骨架：{len(dirs)} 个目录，含入口文件、行为规则、任务路由、记忆索引。
+用 star-your-harness 生成了基础骨架：{len(dirs)} 个目录，含入口 AGENTS.md、当前状态 NOW.md、工具清单 TOOLS.md、记忆索引。
 
 ## 效果
 
@@ -378,7 +502,7 @@ type: project
 
 我的 harness。给 AI 协作用的工作目录。
 
-结构和规则见 [CLAUDE.md](CLAUDE.md)。
+结构和规则见 [AGENTS.md](AGENTS.md)，当前状态见 [NOW.md](NOW.md)，可用工具见 [TOOLS.md](TOOLS.md)。
 
 - 用 [star-your-harness](https://github.com/SpaceZephyr/build-your-harness) 搭的
 - 用 [better-your-harness](https://github.com/SpaceZephyr/build-your-harness) 定期体检
@@ -415,8 +539,28 @@ def main():
     p = json.loads(Path(args[0]).read_text(encoding='utf-8'))
     if not p.get('dir'):
         print('profile 里必须有 dir'); sys.exit(1)
-    dirs, files = build_plan(p)
     root = Path(p['dir'])
+    entry_only = '--entry-only' in sys.argv
+    if entry_only:
+        if not root.is_dir():
+            print(f'--entry-only 要求目录已存在：{root}'); sys.exit(1)
+        actual = []
+        for d in sorted(root.iterdir()):
+            if not d.is_dir() or d.name.startswith('.'):
+                continue
+            desc = ''
+            rd = d / 'README.md'
+            if rd.exists():       # 取 README 里第一行正文当说明
+                desc = next((l.strip() for l in rd.read_text(encoding='utf-8', errors='ignore').splitlines()
+                             if l.strip() and not l.startswith('#')), '')[:40]
+            actual.append((d.name, d.name, desc or '（待补充说明）', '待确认'))
+        p['_actual_dirs'] = actual
+    dirs, files = build_plan(p)
+    if entry_only:
+        # 只补根目录的入口文件，不建目录、不写各层 README 和种子文件
+        files = {k: v for k, v in files.items() if '/' not in k}
+        dirs = []
+        p['git'] = False
 
     if '--apply' not in sys.argv:
         print(f'预演（不写盘）。目标：{root}\n')
@@ -440,7 +584,7 @@ def main():
         for r in skipped[:10]:
             print(f'    跳过 {r}')
     print('\n下一步：')
-    print('  1. 填 about-me 里那三份文件，harness 的质量取决于这一步')
+    print('  1. 填 NOW.md 和 about-me 里那三份文件，harness 的质量取决于这一步')
     print('  2. 把已有材料搬进来：python3 scripts/migrate.py <来源目录> ' + str(root))
     print('  3. 体检：better-your-harness 的 scan.py')
 

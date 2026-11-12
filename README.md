@@ -4,7 +4,7 @@
 
 ---
 
-`star-your-harness.skill` &nbsp;·&nbsp; `better-your-harness.skill` &nbsp;·&nbsp; `view-your-harness.skill`
+`star` &nbsp;·&nbsp; `know` &nbsp;·&nbsp; `sync` &nbsp;·&nbsp; `better` &nbsp;·&nbsp; `view` &nbsp;·&nbsp; **v2.0**
 
 <br>
 
@@ -20,19 +20,35 @@
 
 ---
 
-三个配套的 Agent Skill：**一个负责搭 harness，一个负责给 harness 体检，一个负责日常翻。**
+五个配套的 Agent Skill，覆盖一个个人 harness 的完整生命周期：**搭起来、认识你、同步出去、定期体检、日常翻看。**
 
 | Skill | 干什么 | 产出 |
 |-------|--------|------|
-| [**star-your-harness**](star-your-harness/) | 从零搭一个 harness | 可视化方案报告 → 你确认 → 目录骨架落盘 |
-| [**better-your-harness**](better-your-harness/) | 给现有 harness 体检 | 可视化体检报告 + 可一键复制的修复口令 |
+| [**star-your-harness**](star-your-harness/) | 从零搭，或者把已有的乱目录原地重组 | 可视化方案 → 你确认 → 落盘。入口 AGENTS.md + NOW.md + TOOLS.md |
+| [**know-your-harness**](know-your-harness/) | 用真实数据生成你的画像 | 各平台内容的最好与最差、有依据的规律、填好的工具清单 |
+| [**sync-your-harness**](sync-your-harness/) | 让 harness 跨设备、跨 Agent 可用 | 推送预演、白名单 `.gitignore`、大文件拦截、共享记忆、Skill 清点 |
+| [**better-your-harness**](better-your-harness/) | 给现有 harness 体检 | 可视化体检报告 + 可一键复制的修复口令 + 换 Agent 自测 |
 | [**view-your-harness**](view-your-harness/) | 日常翻你的 harness | 本地只读工作台：文件清单 + Skill 装备台 |
+
+不想装 Skill，只想要几句能直接用的话？看 [PROMPTS.md](PROMPTS.md)：7 条提示词，复制给任何 Agent 就能优化你本地的 harness。
+
+## 2.0 改了什么
+
+1.0 能搭出一个空骨架。用了几个月之后发现，真正难的是另外四件事，2.0 就是补这四件：
+
+| 问题 | 1.0 | 2.0 |
+|------|-----|-----|
+| 我已经有一个乱了几年的目录 | 只能新建一个再复制过去 | **改造模式**：原地重组顶层，只移动不删除，留 MANIFEST 和 undo.sh |
+| 换一个 Agent 就不认识我了 | 入口是 CLAUDE.md，只有 Claude Code 读 | **AGENTS.md 是唯一正本**，CLAUDE.md 只留一行引用。加了 NOW.md（当前主线）和 TOOLS.md（工具清单） |
+| `about-me` 永远填不完 | 三份空模板等你手写 | **know-your-harness**：拉你自己发过的内容，脚本算出什么表现好，画像里每个数字都有出处 |
+| 推到 GitHub 怕泄露、怕臃肿 | 一份基础 `.gitignore` | **sync-your-harness**：白名单规则、推送预演、密钥位置扫描、pre-commit 拦大文件 |
+| 怎么知道 harness 真的能用 | 结构体检 | 体检新增 4 项，外加**上手自测**：换一个 Agent 读完入口，答 5 道只有读过你资料才答得出的题 |
 
 零依赖，只需要 Python 3.8+。不联网，不上传任何东西。
 
 ## 不绑定任何一个 Agent
 
-三个 Skill 用的是标准 `SKILL.md` 格式（YAML frontmatter + 正文），**任何能读它的 Agent 都能用**：Claude Code、Codex、Cursor、OpenClaw、以及各种 buddy 系工具。
+五个 Skill 用的是标准 `SKILL.md` 格式（YAML frontmatter + 正文），**任何能读它的 Agent 都能用**：Claude Code、Codex、Cursor、OpenClaw、以及各种 buddy 系工具。
 
 更彻底一点：**底层全是纯 Python 命令行脚本，不 import 任何 Agent 相关的东西。** 你完全不用 Skill 机制，直接当 CLI 跑也行，产出的 HTML 报告是一样的。Skill 那层只是替你把访谈、判断、串流程这些事包起来。
 
@@ -46,11 +62,11 @@
 
 更麻烦的是你不知道它现在什么状况。装了多少 Skill 真正被调用过？Agent 读你这个仓库要先吃掉多少 token？有没有明文密钥躺在一个没被 `.gitignore` 覆盖的地方？
 
-star 管搭，better 管查状况，view 管你每天翻着看手上到底有什么。
+star 管搭，know 管让它认识你，sync 管让它走出这台电脑，better 管查状况，view 管你每天翻着看手上到底有什么。
 
 ## 五层框架
 
-三个工具共用同一套语言，所以搭出来的东西能直接被体检、被翻阅：
+五个工具共用同一套语言，所以搭出来的东西能直接被体检、被翻阅：
 
 | 层 | 是什么 | 落地成什么 |
 |----|--------|-----------|
@@ -70,22 +86,22 @@ cd build-your-harness
 **Claude Code**
 
 ```bash
-ln -s "$(pwd)/star-your-harness"   ~/.claude/skills/star-your-harness
-ln -s "$(pwd)/better-your-harness" ~/.claude/skills/better-your-harness
-ln -s "$(pwd)/view-your-harness"   ~/.claude/skills/view-your-harness
+for s in star know sync better view; do
+  ln -s "$(pwd)/$s-your-harness" ~/.claude/skills/$s-your-harness
+done
 ```
 
 **Codex**
 
 ```bash
-ln -s "$(pwd)/star-your-harness"   ~/.codex/skills/star-your-harness
-ln -s "$(pwd)/better-your-harness" ~/.codex/skills/better-your-harness
-ln -s "$(pwd)/view-your-harness"   ~/.codex/skills/view-your-harness
+for s in star know sync better view; do
+  ln -s "$(pwd)/$s-your-harness" ~/.codex/skills/$s-your-harness
+done
 ```
 
-**其他 Agent** — 软链到它的 Skill 目录就行，三个 Skill 除了 `SKILL.md` 和 `scripts/` 没有别的依赖。项目级也可以：`<项目>/.claude/skills/` 或 `<项目>/.agents/skills/`。
+**其他 Agent** — 软链到它的 Skill 目录就行，五个 Skill 除了 `SKILL.md` 和 `scripts/` 没有别的依赖。项目级也可以：`<项目>/.claude/skills/` 或 `<项目>/.agents/skills/`。
 
-装完说一句「帮我搭一个 harness」「给这个项目做个体检」或者「打开工作台」。
+装完说一句「帮我搭一个 harness」「我的目录太乱了帮我重组」「帮我生成画像」「推到 GitHub 安全吗」「给这个项目做个体检」或者「打开工作台」。
 
 **不装也能用**
 
@@ -98,29 +114,40 @@ python3 better-your-harness/scripts/render.py findings.json -o report.html
 python3 star-your-harness/scripts/plan.py profile.json -o plan.html
 python3 star-your-harness/scripts/apply.py plan.json -d decisions.json --apply
 
+# 改造已有目录（scan 只读，apply 默认预演）
+python3 star-your-harness/scripts/restructure.py scan <harness目录> -o <输出目录>
+python3 star-your-harness/scripts/restructure.py apply restructure-plan.json -d decisions.json --apply
+
+# 画像
+python3 know-your-harness/scripts/probe.py
+python3 know-your-harness/scripts/rank.py <任意平台导出的.json>
+
+# 同步
+python3 sync-your-harness/scripts/sync.py preview <harness目录>
+
 # 工作台
 python3 view-your-harness/scripts/serve.py <任意目录>
 ```
 
 > 实测跑过 Claude Code 和 Codex。其他 runtime 因为格式是标准的、脚本是纯 Python，理论上都行，但我没逐个验证过 —— 遇到问题开个 issue。
 
-## 三个工具怎么配合
+## 五个工具怎么配合
 
 ```
-                    ┌─────────────────────┐
-   什么都没有   ──▶  │  star-your-harness  │ ──▶  一个立得住的骨架
-                    └─────────────────────┘
-                              │
-                              ▼
-                    ┌─────────────────────┐
-   用了一阵    ──▶   │ better-your-harness │ ──▶  覆盖度 + 待办 + 修复口令
-                    └─────────────────────┘
-                              │
-                              ├──▶ 修完再体检，看覆盖度有没有涨
-                              ▼
-                    ┌─────────────────────┐
-   东西堆多了  ──▶   │  view-your-harness  │ ──▶  能翻能搜的工作台
-                    └─────────────────────┘
+ 什么都没有 ─┐
+             ├─▶ star   搭骨架 / 原地重组      ─▶ AGENTS.md + NOW.md + TOOLS.md + 七层目录
+ 一个乱目录 ─┘        │
+                      ▼
+                   know   拉数据、算排名、写画像  ─▶ Agent 知道你是谁、什么内容表现好
+                      │
+                      ▼
+                   sync   预演、白名单、共享记忆  ─▶ 换电脑、换 Agent 都能接着用
+                      │
+                      ▼
+                   better 结构体检 + 换 Agent 自测 ─▶ 覆盖度 + 待办 + 修复口令
+                      │        └─▶ 修完再体检，看覆盖度有没有涨
+                      ▼
+                   view   能翻能搜的工作台
 ```
 
 体检回答「我这儿哪里有问题」，工作台回答「我这儿都有什么」。装到一百多个 Skill 之后，后者才是你每天真正会打开的那个。
@@ -130,9 +157,9 @@ python3 view-your-harness/scripts/serve.py <任意目录>
 实测一个刚生成的：
 
 ```
-覆盖度 28/34
+覆盖度 32/38
   安全与卫生   7/7   ← 满分
-  上下文质量   9/9   ← 满分
+  上下文质量   13/13 ← 满分（2.0 新增 4 项：入口只有一份正本、NOW.md、TOOLS.md、上手自测）
   记忆         5/5   ← 满分
   学习         5/6
   工具装备     2/7
@@ -144,6 +171,8 @@ python3 view-your-harness/scripts/serve.py <任意目录>
 
 ## 三条共同的设计原则
 
+2.0 新增的脚本守的是同一套。
+
 ### 数字只能来自脚本
 
 报告里每一个数字都能在 `findings.json` / `plan.json` 里找到出处。仓库可见性走 `gh repo view --json visibility`，不从 remote URL 猜。
@@ -154,13 +183,15 @@ python3 view-your-harness/scripts/serve.py <任意目录>
 
 `plan.py` 一个字节都不写盘。`scan.py` 只读不写。`serve.py` 整个服务没有写、改、删接口，只绑 `127.0.0.1`，路径越界一律 403。搬运用 `copy` 不用 `move`，同名一律跳过不覆盖。
 
+2.0 的改造模式是唯一会移动你文件的地方，所以规矩最严：`scan` 的输出目录不允许在 harness 里面，`apply` 不加 `--apply` 只预演，只移动不删除，目标有同名就跳过，每一步写进 `MANIFEST.md` 并生成 `undo.sh`。同步工具不执行任何 git 命令，已有的 `.gitignore` 和 hook 不覆盖，新规则写成 `.proposed` 文件等你对比。
+
 体检报告不直接改你的仓库，它给你一段修复口令，你自己决定粘不粘给 Agent。
 
 凭证扫描只输出「文件路径 + 变量名 + 命中的模式名」，**任何密钥的值都不会出现在报告、对话或修复口令里**。
 
 ### 不打分，打覆盖度
 
-`28/34` 是「已具备项 / 应有项」，可数、可解释、修一项变一项。
+`32/38` 是「已具备项 / 应有项」，可数、可解释、修一项变一项。
 
 不用百分制。「任务理解 55 分」这种数字需要一个不存在的基线，而且不可证伪 —— 你既不知道满分多少，也不知道怎么让它变成 60。
 
@@ -174,8 +205,19 @@ build-your-harness/
 │   └── scripts/
 │       ├── plan.py             profile → 可视化方案报告（不写盘）
 │       ├── apply.py            方案 + 你的决定 → 落盘
-│       ├── scaffold.py         骨架生成
-│       └── migrate.py          旧资料归类
+│       ├── scaffold.py         骨架生成（--entry-only 只补入口文件）
+│       ├── migrate.py          旧资料归类
+│       └── restructure.py      改造模式：原地重组已有目录
+├── know-your-harness/          认识你
+│   ├── SKILL.md
+│   └── scripts/
+│       ├── probe.py            探测可用工具和数据源（只读变量名）
+│       ├── collect.py          GitHub 仓库 + 本地文本统计
+│       └── rank.py             任意平台 JSON → 最好 / 最差 / 分布
+├── sync-your-harness/          同步
+│   ├── SKILL.md
+│   └── scripts/
+│       └── sync.py             preview / apply / memory / skills
 ├── better-your-harness/        体检
 │   ├── SKILL.md                Skill 说明书（含三条铁律）
 │   ├── GUIDE.md                完整文档

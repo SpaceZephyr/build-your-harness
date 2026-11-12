@@ -69,6 +69,14 @@ python3 ~/.claude/skills/better-your-harness/scripts/render.py /tmp/harness/find
 
 告诉用户报告在哪，口头复述最高优先级的 1-2 条，其余让他自己在报告里看。不要把整份报告在对话里重述一遍。
 
+### 5. 换 Agent 自测（2.0）
+
+体检查的是结构，自测查的是「换一个 Agent 读完，是不是真的了解这个人」。两个都过才算 harness 能用。
+
+1. 看 `findings.json` 的 `context.harness2`：`has_quiz` 为假就先帮用户出题。根据入口文件和它要求必读的文件出 5 道题，覆盖主线和不做的事、某类内容存在哪、用户的一条固定偏好、某个工具怎么调和花费、哪些内容不能推送。**题目必须是只有读过用户资料才答得出的**，写进 AGENTS.md 末尾的「上手自测」。
+2. 建议用户换一个 Agent 来答（用 Claude Code 搭的就用 Codex 验）。同一个 Agent 自己出题自己答容易放水。
+3. 答不出或答错的题，定位是哪份文件缺了什么，补上，再答一次。
+
 ## 定级标准
 
 别把所有东西都报成高危，会让用户直接无视整份报告。
@@ -114,7 +122,7 @@ python3 ~/.claude/skills/better-your-harness/scripts/render.py /tmp/harness/find
 | 层 | 检查项 |
 |----|--------|
 | 安全与卫生 | 根 .gitignore 是否存在与覆盖度、被跟踪文件噪音比、明文凭证（文件 glob + 7 类 token 模式 + 变量名启发）、凭证是否被跟踪或被 ignore、仓库可见性、Agent 权限配置里的 yolo/bypass、hooks 数量 |
-| 上下文质量 | 入口文件（CLAUDE.md/AGENTS.md 等）存在与体量、是否含目录地图和行为规则、冷启动 token 成本、顶层目录 README 覆盖率、目录最大深度与平均深度、过度扁平的目录、超大文本文件、jsonl 索引的悬空条目 |
+| 上下文质量 | 入口文件（AGENTS.md/CLAUDE.md 等）存在与体量、是否只有一份正本、是否含目录地图和行为规则、有没有 NOW.md 状态页、TOOLS.md 工具清单和上手自测题、冷启动 token 成本、顶层目录 README 覆盖率、目录最大深度与平均深度、过度扁平的目录、超大文本文件、jsonl 索引的悬空条目 |
 | 工具装备 | Skill 位置与去重后装机量、缺 SKILL.md、缺 frontmatter name/description、description 过短、软链接数、MCP 服务、自定义命令、子 Agent |
 | 记忆 | 记忆目录、索引是否存在、索引悬空条目、未入索引的文件、结构化日志的行数和最后写入时间 |
 | 学习 | 迭代与复盘目录、近 90 天提交与活跃天数、近 30 天更新过的 Skill、超过 180 天没动的 Skill |

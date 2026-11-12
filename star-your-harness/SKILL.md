@@ -1,6 +1,6 @@
 ---
 name: star-your-harness
-description: 帮用户从零搭一个自己的 AI harness 工作目录。先用四个问题做一次简短访谈（你是干什么的、想让 AI 帮你做什么、现在的资料散在哪、放哪儿），然后按职业生成目录骨架，含入口 CLAUDE.md（目录地图 + 行为规则 + 任务路由）、about-me 上下文层、记忆层与索引、协议层与复盘、工具层、.gitignore 和 hooks，最后给出把已有资料搬进来的归类计划。生成的 harness 能直接通过 better-your-harness 的体检。当用户说「帮我搭一个 harness」「我想建自己的 AI 工作目录」「怎么组织我的 AI 协作环境」「从零开始配 Claude Code 的项目结构」「我的资料太乱了想重新组织」「star my harness」时触发。
+description: 帮用户搭一个自己的 AI harness 工作目录，或者把已有的乱目录原地重组成 harness（改造模式）。先用四个问题做一次简短访谈（你是干什么的、想让 AI 帮你做什么、现在的资料散在哪、放哪儿），然后按职业生成目录骨架，含唯一入口 AGENTS.md（目录地图 + 行为规则 + 任务路由 + 上手自测）、当前状态 NOW.md、工具清单 TOOLS.md、about-me 上下文层、记忆层与索引、协议层与复盘、工具层、.gitignore 和 hooks，最后给出把已有资料搬进来的归类计划。生成的 harness 能直接通过 better-your-harness 的体检。当用户说「帮我搭一个 harness」「我想建自己的 AI 工作目录」「怎么组织我的 AI 协作环境」「从零开始配 Claude Code 的项目结构」「我的资料太乱了想重新组织」「帮我精简目录」「把这个文件夹整理成 harness」「star my harness」时触发。
 ---
 
 # star-your-harness
@@ -132,14 +132,62 @@ python3 ../better-your-harness/scripts/scan.py <harness目录> -o findings.json
 
 按优先级说三件事，别多：
 
-1. **去填 `about-me/` 里那三份文件。** harness 的质量几乎全取决于这一步，目录本身不产生价值。
+1. **去填 `NOW.md` 和 `about-me/` 里那三份文件。** harness 的质量几乎全取决于这一步，目录本身不产生价值。不想手写的话，用 know-your-harness 从真实数据生成画像。
 2. **用一周，然后去 `protocols/iterations/` 写第一条迭代记录。** 哪里不顺就改哪里。
 3. **一个月后再体检一次，看覆盖度有没有涨。**
+
+要多端同步或者让别的 Agent 也用上，接着用 sync-your-harness。
+
+## 改造模式：已经有一堆东西了
+
+上面的流程解决「从零开始」。更常见的情况是用户已经有一个攒了几年的目录，顶层十几二十个文件夹，自己都说不清哪个是干什么的。这时候不要建新目录再搬，直接在原地重组。
+
+**判断用哪个模式：** 用户说「帮我搭一个」「从零开始」走上面的流程。说「太乱了」「帮我整理」「精简一下目录」「重新组织」，而且目标目录非空，走这里。
+
+### 改造的四条规矩
+
+1. **只动顶层。** 每个顶层目录要么保留、要么整个并进某一层、要么整个归档。目录内部不拆，那是用户自己的事。
+2. **只移动，不删除。** 唯一的删除是 `rmdir` 空目录。停用的东西进归档层。
+3. **每一次移动都留痕。** 归档批次目录里有 `MANIFEST.md`（原路径 → 新路径）和 `undo.sh`（原路退回）。
+4. **目标已有同名的一律跳过。** 不合并，不覆盖。
+
+### 流程
+
+```bash
+# 1. 扫描，只读。输出目录必须在 harness 外面
+python3 ~/.claude/skills/star-your-harness/scripts/restructure.py scan <harness目录> -o <输出目录>
+```
+
+产出 `restructure-plan.html` 和 `restructure-plan.json`。报告里每个顶层项一行：文件数、体积、多久没动、建议去哪、理由。把 HTML 路径给用户，**等他在页面上调完下拉框，点「复制我的决定」粘回来**，存成 `decisions.json`。
+
+```bash
+# 2. 预演
+python3 ~/.claude/skills/star-your-harness/scripts/restructure.py apply restructure-plan.json -d decisions.json
+# 3. 用户看过预演输出、说可以，再执行
+python3 ~/.claude/skills/star-your-harness/scripts/restructure.py apply restructure-plan.json -d decisions.json --apply
+```
+
+### 移动之后必须做的三件事
+
+1. **修引用。** `MANIFEST.md` 末尾列出了哪些文本文件里还写着旧路径。逐个打开确认再改，不要全局替换：文章正文里出现的旧目录名可能是内容本身。
+2. **补入口。** 目录已经有了，但没有 AGENTS.md、NOW.md、TOOLS.md。写一个 profile.json 把 `dir` 指向这个目录，跑 `scaffold.py profile.json --entry-only --apply`。它按实际存在的目录生成目录地图，只补缺的入口文件，已有的一个不碰，也不建任何目录。然后**把目录地图里每个目录的说明和所属层补准确**，脚本只能从各目录 README 里猜。
+3. **查外部依赖。** 定时任务、别的 Skill、shell 脚本里可能写死了旧路径。问用户有没有，有就一起改。
+
+### 改造模式容易做错的地方
+
+**别替用户决定归档什么。** 「180 天没动」只是建议。有的东西就是放着不动但很重要。
+
+**自带 git 仓库的目录要单独提醒。** 报告里会标出来。移动不会坏仓库，但引用它的外部工具会找不到。
+
+**别一次改完所有层级。** 顶层理顺、跑一周，再决定要不要动第二层。
 
 ## 生成出来是什么
 
 ```
-CLAUDE.md              入口：目录地图 + 6 条行为规则 + 任务路由表
+AGENTS.md              唯一入口：必读清单 + 目录地图 + 行为规则 + 任务路由 + 边界 + 上手自测
+CLAUDE.md              只有一行 @AGENTS.md，让 Claude Code 读到同一份
+NOW.md                 当前状态：主线、做与不做、本周
+TOOLS.md               工具清单：能调什么、怎么调、花多少钱
 README.md
 .gitignore             含凭证兜底那几行
 .claude/settings.json  一个 hook：拦截 git add -A
@@ -193,5 +241,6 @@ star-your-harness/
     ├── plan.py       profile.json → plan.json + plan.html（方案报告，可交互判断，不写盘）
     ├── apply.py      plan.json + decisions.json → 真正落盘（预演 / --apply 两段式）
     ├── scaffold.py   骨架生成的底层实现，也可单独当 CLI 用
-    └── migrate.py    归类规则的底层实现，也可单独出 migrate.sh
+    ├── migrate.py    归类规则的底层实现，也可单独出 migrate.sh
+    └── restructure.py  改造模式：scan 出方案，apply 原地重组，留 MANIFEST 和 undo.sh
 ```
